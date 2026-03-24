@@ -172,7 +172,6 @@ class MainWindow(QMainWindow):
                     self._add_item(str(p))
 
     def _add_item(self, path: str):
-        # Deduplicate
         for i in range(self.file_list.count()):
             if self.file_list.item(i).data(Qt.UserRole) == path:
                 return
