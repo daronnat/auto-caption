@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize, QThread, Signal
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QCloseEvent, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
     QFileIconProvider, QFrame, QGroupBox, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QMainWindow, QPushButton, QRadioButton, QSpinBox,
-    QSplitter, QVBoxLayout, QWidget,
+    QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QRadioButton,
+    QSpinBox, QSplitter, QVBoxLayout, QWidget,
 )
 
 from backend.base import InferenceBackend
@@ -21,6 +21,15 @@ from i18n import tr, set_language, current_language, available_languages
 from ui.theme import apply_theme
 from ui.prompt_manager import PromptManager
 from ui.progress_widget import ProgressWidget
+
+
+class GpuDetector(QThread):
+    """Background thread for GPU detection (avoids blocking UI on torch import)."""
+    detected = Signal(dict)
+
+    def run(self):
+        from core.gpu import detect_gpu
+        self.detected.emit(detect_gpu())
 
 
 class ModelLoader(QThread):
@@ -47,30 +56,67 @@ class MainWindow(QMainWindow):
         self._backend: InferenceBackend | None = None
         self._worker: RenameWorker | None = None
         self._model_loader: ModelLoader | None = None
+        self._gpu_detector: GpuDetector | None = None
+        self._gpu_info: dict | None = None
         self._pending_start = False
+        self._tr: dict[str, tuple] = {}
 
         self.setWindowTitle(tr("window_title"))
         self.setMinimumSize(1000, 650)
         self._setup_ui()
+        self._setup_statusbar()
+        self._start_gpu_detection()
+
+    # ── Translation helpers ──────────────────────────────────────
+
+    def _trl(self, key: str) -> QLabel:
+        """Create a QLabel registered for automatic retranslation."""
+        lbl = QLabel(tr(key))
+        self._tr[key] = (lbl, "setText")
+        return lbl
+
+    def _trb(self, key: str) -> QPushButton:
+        """Create a QPushButton registered for automatic retranslation."""
+        btn = QPushButton(tr(key))
+        self._tr[key] = (btn, "setText")
+        return btn
+
+    def _trg(self, key: str) -> QGroupBox:
+        """Create a QGroupBox registered for automatic retranslation."""
+        box = QGroupBox(tr(key))
+        self._tr[key] = (box, "setTitle")
+        return box
+
+    def _retranslate(self):
+        """Update all UI text after language change — no restart needed."""
+        self.setWindowTitle(tr("window_title"))
+        for key, (widget, method) in self._tr.items():
+            getattr(widget, method)(tr(key))
+        self._theme_btn.setText(self._theme_icon())
+        self._update_file_count()
+        self._update_gpu_display()
+        self._update_cache_display()
+        self._prompt_mgr.retranslate()
+
+    # ── UI setup ─────────────────────────────────────────────────
 
     def _setup_ui(self):
         central = QWidget()
+        central.setObjectName("centralWidget")
+        central.setAttribute(Qt.WA_StyledBackground, True)
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
-        root.setSpacing(8)
-        root.setContentsMargins(10, 10, 10, 10)
+        root.setSpacing(10)
+        root.setContentsMargins(12, 12, 12, 12)
 
-        # Top toolbar
         root.addLayout(self._build_toolbar())
 
-        # Main splitter
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self._build_file_panel())
         splitter.addWidget(self._build_settings_panel())
         splitter.setSizes([480, 500])
         root.addWidget(splitter, stretch=1)
 
-        # Bottom
         root.addWidget(self._build_bottom_panel())
 
     def _build_toolbar(self) -> QHBoxLayout:
@@ -78,7 +124,7 @@ class MainWindow(QMainWindow):
         row.setSpacing(12)
 
         # Model info
-        row.addWidget(QLabel(tr("model_label")))
+        row.addWidget(self._trl("model_label"))
         self._model_status = QLabel(tr("model_not_loaded"))
         self._model_status.setStyleSheet("font-weight: bold;")
         row.addWidget(self._model_status)
@@ -86,7 +132,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self._vsep())
 
         # Backend selector
-        row.addWidget(QLabel(tr("backend_label")))
+        row.addWidget(self._trl("backend_label"))
         self._backend_combo = QComboBox()
         backends = available_backends()
         if not backends:
@@ -98,15 +144,23 @@ class MainWindow(QMainWindow):
         self._backend_combo.setFixedWidth(130)
         row.addWidget(self._backend_combo)
 
-        self._load_model_btn = QPushButton(tr("status_loading_model").replace("...", ""))
-        self._load_model_btn.setFixedWidth(120)
+        self._load_model_btn = self._trb("load_model_btn")
+        self._load_model_btn.setFixedWidth(130)
         self._load_model_btn.clicked.connect(self._load_model)
         row.addWidget(self._load_model_btn)
 
         row.addStretch()
 
+        # Model manager
+        self._manage_btn = self._trb("manage_models")
+        self._manage_btn.setFixedWidth(90)
+        self._manage_btn.clicked.connect(self._open_model_manager)
+        row.addWidget(self._manage_btn)
+
+        row.addWidget(self._vsep())
+
         # Language selector
-        row.addWidget(QLabel(tr("language_label")))
+        row.addWidget(self._trl("language_label"))
         self._lang_combo = QComboBox()
         self._lang_combo.addItems(available_languages())
         self._lang_combo.setCurrentText(current_language())
@@ -124,7 +178,7 @@ class MainWindow(QMainWindow):
         return row
 
     def _build_file_panel(self) -> QGroupBox:
-        box = QGroupBox(tr("files_group"))
+        box = self._trg("files_group")
         layout = QVBoxLayout(box)
 
         self.file_list = QListWidget()
@@ -133,14 +187,19 @@ class MainWindow(QMainWindow):
         self.file_list.setSpacing(2)
         layout.addWidget(self.file_list)
 
+        # File count
+        self._file_count_label = QLabel(tr("files_count", count=0))
+        self._file_count_label.setStyleSheet("font-size: 11px; opacity: 0.7;")
+        layout.addWidget(self._file_count_label)
+
         btn_row = QHBoxLayout()
         for label_key, slot in [
             ("add_files", self._add_files),
             ("add_folder", self._add_folder),
             ("remove_selected", self._remove_selected),
-            ("clear_all", self.file_list.clear),
+            ("clear_all", self._clear_all),
         ]:
-            btn = QPushButton(tr(label_key))
+            btn = self._trb(label_key)
             btn.clicked.connect(slot)
             btn_row.addWidget(btn)
         layout.addLayout(btn_row)
@@ -153,7 +212,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Naming style
-        style_box = QGroupBox(tr("naming_style"))
+        style_box = self._trg("naming_style")
         style_row = QHBoxLayout(style_box)
         self._style_group = QButtonGroup(self)
         self._style_group.setExclusive(True)
@@ -168,7 +227,7 @@ class MainWindow(QMainWindow):
 
         # Max words
         words_row = QHBoxLayout()
-        words_row.addWidget(QLabel(tr("max_words_label")))
+        words_row.addWidget(self._trl("max_words_label"))
         self._max_words = QSpinBox()
         self._max_words.setRange(1, 20)
         self._max_words.setValue(self._config.get("max_words", 5))
@@ -182,10 +241,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._prompt_mgr)
 
         # Output mode
-        out_box = QGroupBox(tr("output_group"))
+        out_box = self._trg("output_group")
         out_layout = QVBoxLayout(out_box)
         self._radio_rename = QRadioButton(tr("rename_in_place"))
         self._radio_copy = QRadioButton(tr("copy_to_subfolder"))
+        self._tr["rename_in_place"] = (self._radio_rename, "setText")
+        self._tr["copy_to_subfolder"] = (self._radio_copy, "setText")
         default_mode = self._config.get("output_mode", "copy")
         self._radio_copy.setChecked(default_mode == "copy")
         self._radio_rename.setChecked(default_mode == "rename")
@@ -207,11 +268,13 @@ class MainWindow(QMainWindow):
 
         row = QHBoxLayout()
         self._status = QLabel(tr("status_ready"))
-        self._run_btn = QPushButton(tr("start_button"))
-        self._run_btn.setMinimumHeight(36)
+
+        self._run_btn = self._trb("start_button")
+        self._run_btn.setObjectName("startButton")
+        self._run_btn.setMinimumHeight(40)
         self._run_btn.clicked.connect(self._start)
 
-        self._cancel_btn = QPushButton(tr("cancel_button"))
+        self._cancel_btn = self._trb("cancel_button")
         self._cancel_btn.setMinimumHeight(36)
         self._cancel_btn.setVisible(False)
         self._cancel_btn.clicked.connect(self._cancel)
@@ -222,25 +285,103 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
         return frame
 
-    # ── File management ───────────────────────────────────────────
+    def _setup_statusbar(self):
+        sb = self.statusBar()
+        self._gpu_status = QLabel(tr("gpu_detecting"))
+        self._vram_status = QLabel("")
+        self._cache_status = QLabel("")
+
+        self._clear_cache_btn = QPushButton(tr("clear_cache"))
+        self._tr["clear_cache"] = (self._clear_cache_btn, "setText")
+        self._clear_cache_btn.setFixedHeight(20)
+        self._clear_cache_btn.setStyleSheet("font-size: 11px; padding: 1px 8px;")
+        self._clear_cache_btn.clicked.connect(self._clear_cache)
+
+        sb.addPermanentWidget(self._gpu_status)
+        sb.addPermanentWidget(self._vram_status)
+        sb.addPermanentWidget(self._cache_status)
+        sb.addPermanentWidget(self._clear_cache_btn)
+        self._update_cache_display()
+
+    # ── GPU detection ────────────────────────────────────────────
+
+    def _start_gpu_detection(self):
+        self._gpu_detector = GpuDetector()
+        self._gpu_detector.detected.connect(self._on_gpu_detected)
+        self._gpu_detector.start()
+
+    def _on_gpu_detected(self, info: dict):
+        self._gpu_info = info
+        self._update_gpu_display()
+
+    def _update_gpu_display(self):
+        if self._gpu_info is None:
+            self._gpu_status.setText(f"GPU: {tr('gpu_detecting')}")
+            return
+        if self._gpu_info["backend_hint"] == "cpu":
+            self._gpu_status.setText(f"GPU: {tr('gpu_cpu_only')}")
+        else:
+            self._gpu_status.setText(f"GPU: {self._gpu_info['device_name']}")
+        self._update_vram_display()
+
+    def _update_vram_display(self):
+        from core.gpu import get_vram_usage
+        used, total = get_vram_usage()
+        if total > 0:
+            self._vram_status.setText(
+                tr("vram_label", used=f"{used / 1024:.1f}", total=f"{total / 1024:.1f}")
+            )
+        elif self._gpu_info and self._gpu_info["device"] == "mps":
+            total_mb = self._gpu_info.get("vram_total_mb", 0)
+            if total_mb > 0:
+                self._vram_status.setText(f"RAM: {total_mb / 1024:.0f} GB (unified)")
+            else:
+                self._vram_status.setText("")
+        else:
+            self._vram_status.setText("")
+
+    # ── Cache ────────────────────────────────────────────────────
+
+    def _update_cache_display(self):
+        from core.cache import cache_size_str, cache_count
+        count = cache_count()
+        size = cache_size_str()
+        if count > 0:
+            self._cache_status.setText(tr("cache_label", size=f"{count} items, {size}"))
+        else:
+            self._cache_status.setText(tr("cache_label", size="empty"))
+
+    def _clear_cache(self):
+        from core.cache import clear_cache
+        reply = QMessageBox.question(
+            self, tr("clear_cache"), tr("clear_cache_confirm"),
+        )
+        if reply == QMessageBox.Yes:
+            cleared = clear_cache()
+            self._status.setText(f"Cache cleared ({cleared} entries)")
+            self._update_cache_display()
+
+    # ── File management ──────────────────────────────────────────
 
     def _add_files(self):
         img_filter = "Images (" + " ".join(f"*{e}" for e in sorted(IMAGE_EXTENSIONS)) + ")"
         doc_filter = "Documents (" + " ".join(f"*{e}" for e in sorted(DOCUMENT_EXTENSIONS)) + ")"
         all_filter = "All supported (" + " ".join(f"*{e}" for e in sorted(ALL_EXTENSIONS)) + ")"
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select Files", "",
+            self, tr("add_files"), "",
             f"{all_filter};;{img_filter};;{doc_filter}",
         )
         for p in paths:
             self._add_item(p)
+        self._update_file_count()
 
     def _add_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        folder = QFileDialog.getExistingDirectory(self, tr("add_folder"))
         if folder:
             for p in sorted(Path(folder).iterdir()):
                 if p.suffix.lower() in ALL_EXTENSIONS:
                     self._add_item(str(p))
+            self._update_file_count()
 
     def _add_item(self, path: str):
         for i in range(self.file_list.count()):
@@ -266,10 +407,34 @@ class MainWindow(QMainWindow):
     def _remove_selected(self):
         for item in self.file_list.selectedItems():
             self.file_list.takeItem(self.file_list.row(item))
+        self._update_file_count()
 
-    # ── Model management ──────────────────────────────────────────
+    def _clear_all(self):
+        self.file_list.clear()
+        self._update_file_count()
+
+    def _update_file_count(self):
+        count = self.file_list.count()
+        self._file_count_label.setText(tr("files_count", count=count))
+
+    # ── Model management ─────────────────────────────────────────
 
     def _load_model(self):
+        # VRAM check before loading
+        if self._gpu_info:
+            from core.gpu import check_vram_sufficient
+            ok, warning = check_vram_sufficient(DEFAULT_MODEL_ID, self._gpu_info)
+            if not ok:
+                reply = QMessageBox.warning(
+                    self, tr("vram_warning_title"),
+                    tr("vram_warning_msg", details=warning),
+                    QMessageBox.Ok | QMessageBox.Cancel,
+                )
+                if reply == QMessageBox.Cancel:
+                    return
+            elif warning:
+                self._status.setText(warning)
+
         backend_name = self._backend_combo.currentText()
         self._backend = get_backend(backend_name)
 
@@ -301,15 +466,24 @@ class MainWindow(QMainWindow):
         else:
             name = self._backend.model_name()
             backend = self._backend.backend_name()
-            self._model_status.setText(f"{name} ({backend})")
+            info = self._backend.device_info()
+            device = info.get("device", "")
+            dtype = info.get("dtype", "")
+            self._model_status.setText(f"{name} ({backend}, {device}, {dtype})")
             self._status.setText(tr("status_ready"))
             self._config["backend"] = backend
             save_config(self._config)
+            self._update_vram_display()
             if self._pending_start:
                 self._pending_start = False
                 self._run_after_ready()
 
-    # ── Worker interaction ────────────────────────────────────────
+    def _open_model_manager(self):
+        from ui.model_manager import ModelManagerDialog
+        dlg = ModelManagerDialog(self)
+        dlg.exec()
+
+    # ── Worker interaction ───────────────────────────────────────
 
     def _get_naming_style(self) -> str:
         return STYLE_NAMES[self._style_group.checkedId()]
@@ -320,7 +494,6 @@ class MainWindow(QMainWindow):
             self._run_btn.setEnabled(False)
             self._load_model()
             return
-
         self._run_after_ready()
 
     def _run_after_ready(self):
@@ -376,8 +549,10 @@ class MainWindow(QMainWindow):
         self._progress.finish()
         count = len(results)
         self._status.setText(tr("status_done", count=count))
+        self._update_vram_display()
+        self._update_cache_display()
 
-    # ── Theme / Language ──────────────────────────────────────────
+    # ── Theme / Language ─────────────────────────────────────────
 
     def _toggle_theme(self):
         new_theme = "light" if self._config.get("theme") == "dark" else "dark"
@@ -393,7 +568,17 @@ class MainWindow(QMainWindow):
         set_language(lang)
         self._config["language"] = lang
         save_config(self._config)
-        self._status.setText(f"Language changed to '{lang}'. Restart for full effect.")
+        self._retranslate()
+
+    # ── Helpers ──────────────────────────────────────────────────
+
+    def closeEvent(self, event: QCloseEvent):
+        """Ensure background threads are stopped before closing."""
+        for thread in (self._gpu_detector, self._model_loader, self._worker):
+            if thread is not None and thread.isRunning():
+                thread.quit()
+                thread.wait(2000)
+        super().closeEvent(event)
 
     @staticmethod
     def _vsep() -> QFrame:

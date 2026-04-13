@@ -1,10 +1,16 @@
 import json
+import sys
 from pathlib import Path
 
 _strings: dict[str, str] = {}
 _fallback: dict[str, str] = {}
 _current_lang = "en"
-_I18N_DIR = Path(__file__).parent
+
+# Support PyInstaller frozen bundles where data files live under sys._MEIPASS
+if getattr(sys, "_MEIPASS", None):
+    _I18N_DIR = Path(sys._MEIPASS) / "i18n"
+else:
+    _I18N_DIR = Path(__file__).parent
 
 
 def set_language(lang: str):

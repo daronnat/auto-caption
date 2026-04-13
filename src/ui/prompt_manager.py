@@ -13,6 +13,7 @@ class PromptManager(QGroupBox):
     def __init__(self, parent=None):
         super().__init__(tr("prompt_presets"), parent)
         self._prompts = load_prompts()
+        self._tr: dict[str, tuple] = {}
         self._setup_ui()
         self._load_preset(0)
 
@@ -27,78 +28,102 @@ class PromptManager(QGroupBox):
         row.addWidget(self._combo, stretch=1)
 
         self._save_btn = QPushButton(tr("save_preset"))
+        self._tr["save_preset"] = (self._save_btn, "setText")
         self._save_btn.clicked.connect(self._save_preset)
         row.addWidget(self._save_btn)
 
         self._del_btn = QPushButton(tr("delete_preset"))
+        self._tr["delete_preset"] = (self._del_btn, "setText")
         self._del_btn.clicked.connect(self._delete_preset)
         row.addWidget(self._del_btn)
         layout.addLayout(row)
 
         # Prompt tabs for image vs document
-        tabs = QTabWidget()
+        self._tabs = QTabWidget()
 
         # Image prompt tab
         img_tab = QWidget()
         img_layout = QVBoxLayout(img_tab)
-        img_layout.addWidget(QLabel("Image prompt template:"))
+        self._img_label = QLabel(tr("img_prompt_label"))
+        self._tr["img_prompt_label"] = (self._img_label, "setText")
+        img_layout.addWidget(self._img_label)
         self._img_prompt_edit = QTextEdit()
         self._img_prompt_edit.setFixedHeight(70)
         self._img_prompt_edit.setPlaceholderText(
             "Use {max_words}, {style_instruction}, {extra} as placeholders"
         )
         img_layout.addWidget(self._img_prompt_edit)
-        tabs.addTab(img_tab, "Image")
+        self._tabs.addTab(img_tab, tr("tab_image"))
 
         # Document prompt tab
         doc_tab = QWidget()
         doc_layout = QVBoxLayout(doc_tab)
-        doc_layout.addWidget(QLabel("Document prompt template:"))
+        self._doc_label = QLabel(tr("doc_prompt_label"))
+        self._tr["doc_prompt_label"] = (self._doc_label, "setText")
+        doc_layout.addWidget(self._doc_label)
         self._doc_prompt_edit = QTextEdit()
         self._doc_prompt_edit.setFixedHeight(70)
         self._doc_prompt_edit.setPlaceholderText(
             "Use {max_words}, {style_instruction}, {extra}, {document_text} as placeholders"
         )
         doc_layout.addWidget(self._doc_prompt_edit)
-        tabs.addTab(doc_tab, "Document")
+        self._tabs.addTab(doc_tab, tr("tab_document"))
 
-        layout.addWidget(tabs)
+        layout.addWidget(self._tabs)
 
         # Extra instructions
-        layout.addWidget(QLabel(tr("extra_prompt_label")))
+        self._extra_label = QLabel(tr("extra_prompt_label"))
+        self._tr["extra_prompt_label"] = (self._extra_label, "setText")
+        layout.addWidget(self._extra_label)
         self._extra_edit = QTextEdit()
         self._extra_edit.setFixedHeight(40)
         self._extra_edit.setPlaceholderText(tr("prompt_placeholder"))
         layout.addWidget(self._extra_edit)
 
         # Inference params row
-        params_box = QGroupBox(tr("inference_group"))
-        params_layout = QHBoxLayout(params_box)
+        self._params_box = QGroupBox(tr("inference_group"))
+        self._tr["inference_group"] = (self._params_box, "setTitle")
+        params_layout = QHBoxLayout(self._params_box)
 
-        params_layout.addWidget(QLabel(tr("temperature_label")))
+        self._temp_label = QLabel(tr("temperature_label"))
+        self._tr["temperature_label"] = (self._temp_label, "setText")
+        params_layout.addWidget(self._temp_label)
         self._temperature = QDoubleSpinBox()
         self._temperature.setRange(0.0, 2.0)
         self._temperature.setSingleStep(0.1)
         self._temperature.setFixedWidth(70)
         params_layout.addWidget(self._temperature)
 
-        params_layout.addWidget(QLabel(tr("top_p_label")))
+        self._top_p_label = QLabel(tr("top_p_label"))
+        self._tr["top_p_label"] = (self._top_p_label, "setText")
+        params_layout.addWidget(self._top_p_label)
         self._top_p = QDoubleSpinBox()
         self._top_p.setRange(0.0, 1.0)
         self._top_p.setSingleStep(0.05)
         self._top_p.setFixedWidth(70)
         params_layout.addWidget(self._top_p)
 
-        params_layout.addWidget(QLabel(tr("max_tokens_label")))
+        self._tokens_label = QLabel(tr("max_tokens_label"))
+        self._tr["max_tokens_label"] = (self._tokens_label, "setText")
+        params_layout.addWidget(self._tokens_label)
         self._max_tokens = QSpinBox()
         self._max_tokens.setRange(10, 500)
         self._max_tokens.setFixedWidth(70)
         params_layout.addWidget(self._max_tokens)
 
         params_layout.addStretch()
-        layout.addWidget(params_box)
+        layout.addWidget(self._params_box)
 
         self._refresh_combo()
+
+    def retranslate(self):
+        """Update all translatable text (called on language change)."""
+        self.setTitle(tr("prompt_presets"))
+        for key, (widget, method) in self._tr.items():
+            getattr(widget, method)(tr(key))
+        self._tabs.setTabText(0, tr("tab_image"))
+        self._tabs.setTabText(1, tr("tab_document"))
+        self._extra_edit.setPlaceholderText(tr("prompt_placeholder"))
 
     def _refresh_combo(self):
         self._combo.blockSignals(True)

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller build output
+build/
+dist/
+AppDir/
+squashfs-root/
+
+# Distribution artifacts
+*.AppImage
+*.dmg
+
+# Models cache (large files)
+*.gguf

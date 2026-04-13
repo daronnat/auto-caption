@@ -98,3 +98,6 @@ class LlamaCppBackend(InferenceBackend):
 
     def is_loaded(self) -> bool:
         return self._llama is not None
+
+    def device_info(self) -> dict:
+        return {"device": "auto (llama.cpp)", "dtype": "quantized"}

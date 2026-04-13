@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            artifact_name: auto-caption-linux-x86_64
+          - os: windows-latest
+            platform: windows
+            artifact_name: auto-caption-windows-x86_64
+          - os: macos-latest
+            platform: macos
+            artifact_name: auto-caption-macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install PySide6 Pillow huggingface_hub python-docx PyMuPDF
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers accelerate qwen-vl-utils
+
+      - name: Build with PyInstaller (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          pyinstaller \
+            --name "auto-caption" \
+            --windowed \
+            --add-data "src/i18n:i18n" \
+            --hidden-import "PySide6.QtSvg" \
+            --hidden-import "PySide6.QtNetwork" \
+            --collect-data "qwen_vl_utils" \
+            --noconfirm \
+            src/main.py
+
+      - name: Build with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pyinstaller `
+            --name "auto-caption" `
+            --windowed `
+            --add-data "src/i18n;i18n" `
+            --hidden-import "PySide6.QtSvg" `
+            --hidden-import "PySide6.QtNetwork" `
+            --collect-data "qwen_vl_utils" `
+            --noconfirm `
+            src/main.py
+
+      # ── Linux: AppImage ──────────────────────────────────────
+      - name: Create AppImage
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications
+
+          # Copy PyInstaller output
+          cp -r dist/auto-caption/* AppDir/usr/bin/
+
+          # Desktop entry
+          cat > AppDir/auto-caption.desktop << 'EOF'
+          [Desktop Entry]
+          Name=Auto Caption
+          Exec=auto-caption
+          Icon=auto-caption
+          Type=Application
+          Categories=Utility;
+          Comment=AI-powered file renaming using local multimodal LLMs
+          EOF
+          cp AppDir/auto-caption.desktop AppDir/usr/share/applications/
+
+          # AppRun launcher
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export LD_LIBRARY_PATH="${HERE}/usr/bin:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/auto-caption" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+
+          # Download appimagetool and run without FUSE
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          ARCH=x86_64 ./squashfs-root/AppRun --no-appstream AppDir ${{ matrix.artifact_name }}.AppImage
+
+      # ── Windows: zip ─────────────────────────────────────────
+      - name: Package Windows build
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\auto-caption\*" -DestinationPath "${{ matrix.artifact_name }}.zip"
+
+      # ── macOS: zip of .app or folder ─────────────────────────
+      - name: Package macOS build
+        if: matrix.platform == 'macos'
+        run: |
+          cd dist
+          if [ -d "auto-caption.app" ]; then
+            zip -r ../${{ matrix.artifact_name }}.zip auto-caption.app
+          else
+            zip -r ../${{ matrix.artifact_name }}.zip auto-caption
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            *.AppImage
+            *.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.content }}
+          files: artifacts/*
+          generate_release_notes: false

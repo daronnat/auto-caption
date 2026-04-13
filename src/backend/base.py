@@ -31,3 +31,7 @@ class InferenceBackend(ABC):
     @abstractmethod
     def is_loaded(self) -> bool:
         ...
+
+    def device_info(self) -> dict:
+        """Return device/dtype info for the loaded model."""
+        return {"device": "unknown", "dtype": "unknown"}

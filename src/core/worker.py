@@ -1,10 +1,12 @@
 from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 from backend.base import InferenceBackend
+from core.cache import get_cached, set_cached
 from core.config import IMAGE_EXTENSIONS, DOCUMENT_EXTENSIONS
 from core.renamer import rename_file
 from core.style import STYLE_INSTRUCTIONS
 from core.text_extract import extract_text
+from i18n import tr
 
 
 class RenameWorker(QThread):
@@ -39,11 +41,12 @@ class RenameWorker(QThread):
 
         for i, path in enumerate(files):
             if self._cancelled:
-                self.status.emit("Cancelled.")
+                self.status.emit(tr("status_cancelled"))
                 break
 
             filename = Path(path).name
-            self.status.emit(f"Processing {filename} ({i + 1}/{len(files)})")
+            self.status.emit(tr("status_processing",
+                                filename=filename, current=i + 1, total=len(files)))
 
             try:
                 ext = Path(path).suffix.lower()
@@ -55,7 +58,14 @@ class RenameWorker(QThread):
                         style_instruction=style_instruction,
                         extra=extra_prompt,
                     )
-                    new_name = self.backend.generate_caption(path, prompt, params)
+                    cached = get_cached(path, prompt, params)
+                    if cached is not None:
+                        new_name = cached
+                        self.status.emit(tr("cache_hit", filename=filename))
+                    else:
+                        new_name = self.backend.generate_caption(path, prompt, params)
+                        set_cached(path, prompt, params, new_name)
+
                 elif ext in DOCUMENT_EXTENSIONS:
                     doc_text = extract_text(path)
                     prompt = doc_prompt_template.format(
@@ -64,7 +74,13 @@ class RenameWorker(QThread):
                         extra=extra_prompt,
                         document_text=doc_text,
                     )
-                    new_name = self.backend.generate_caption_from_text(prompt, params)
+                    cached = get_cached(path, prompt, params)
+                    if cached is not None:
+                        new_name = cached
+                        self.status.emit(tr("cache_hit", filename=filename))
+                    else:
+                        new_name = self.backend.generate_caption_from_text(prompt, params)
+                        set_cached(path, prompt, params, new_name)
                 else:
                     raise ValueError(f"Unsupported file type: {ext}")
 
@@ -78,5 +94,5 @@ class RenameWorker(QThread):
             self.progress.emit(i + 1)
 
         if not self._cancelled:
-            self.status.emit(f"Done — {len(results)} file(s) processed.")
+            self.status.emit(tr("status_done", count=len(results)))
         self.finished.emit(results)
