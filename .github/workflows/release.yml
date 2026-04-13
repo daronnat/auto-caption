@@ -48,6 +48,8 @@ jobs:
             --add-data "src/i18n:i18n" \
             --hidden-import "PySide6.QtSvg" \
             --hidden-import "PySide6.QtNetwork" \
+            --hidden-import "backend.transformers_backend" \
+            --hidden-import "backend.llamacpp_backend" \
             --collect-data "qwen_vl_utils" \
             --noconfirm \
             src/main.py
@@ -61,6 +63,8 @@ jobs:
             --add-data "src/i18n;i18n" `
             --hidden-import "PySide6.QtSvg" `
             --hidden-import "PySide6.QtNetwork" `
+            --hidden-import "backend.transformers_backend" `
+            --hidden-import "backend.llamacpp_backend" `
             --collect-data "qwen_vl_utils" `
             --noconfirm `
             src/main.py

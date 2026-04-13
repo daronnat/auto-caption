@@ -33,3 +33,6 @@ squashfs-root/
 
 # Models cache (large files)
 *.gguf
+
+*.AppImage
+/data
