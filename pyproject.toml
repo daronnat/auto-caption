@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto-caption"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI-powered file renaming using local multimodal LLMs"
 readme = "README.md"
 license = "MIT"
