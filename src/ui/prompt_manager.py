@@ -1,10 +1,24 @@
 from PySide6.QtWidgets import (
-    QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QInputDialog,
-    QLabel, QMessageBox, QPushButton, QSpinBox, QTabWidget, QTextEdit,
-    QVBoxLayout, QWidget,
+    QComboBox,
+    QDoubleSpinBox,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
+
 from core.config import (
-    DEFAULT_PROMPT_IMAGE, DEFAULT_PROMPT_DOCUMENT, load_prompts, save_prompts,
+    DEFAULT_PROMPT_DOCUMENT,
+    DEFAULT_PROMPT_IMAGE,
+    load_prompts,
+    save_prompts,
 )
 from i18n import tr
 

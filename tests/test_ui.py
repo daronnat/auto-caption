@@ -54,9 +54,9 @@ class TestTheme:
 
 class TestMainWindow:
     def _make_window(self, qapp):
-        from ui.theme import apply_theme
         from core.config import load_config
         from ui.main_window import MainWindow
+        from ui.theme import apply_theme
         apply_theme(qapp, "dark")
         config = load_config()
         return MainWindow(config)

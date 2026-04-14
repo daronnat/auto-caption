@@ -1,4 +1,4 @@
-from core.gpu import detect_gpu, get_vram_usage, check_vram_sufficient, MODEL_VRAM_ESTIMATES
+from core.gpu import MODEL_VRAM_ESTIMATES, check_vram_sufficient, detect_gpu, get_vram_usage
 
 
 class TestDetectGpu:

@@ -1,6 +1,7 @@
 import base64
 import re
 from pathlib import Path
+
 from backend.base import InferenceBackend
 from core.style import apply_style
 
@@ -12,9 +13,9 @@ class LlamaCppBackend(InferenceBackend):
         self._model_id = ""
 
     def load_model(self, model_id: str, **kwargs) -> None:
+        from huggingface_hub import hf_hub_download
         from llama_cpp import Llama
         from llama_cpp.llama_chat_format import Llava15ChatHandler
-        from huggingface_hub import hf_hub_download
 
         repo = kwargs.get("gguf_repo", "unsloth/Qwen3.5-0.8B-GGUF")
         model_file = kwargs.get("gguf_file", "Qwen3.5-0.8B-Q4_K_M.gguf")

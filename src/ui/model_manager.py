@@ -1,10 +1,16 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QMessageBox, QPushButton, QVBoxLayout,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
 
-from core.models import get_downloaded_models, delete_model, total_cache_size_mb, cache_dir_path
+from core.models import cache_dir_path, delete_model, get_downloaded_models, total_cache_size_mb
 from i18n import tr
 
 

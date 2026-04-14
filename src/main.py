@@ -8,8 +8,8 @@ from PySide6.QtWidgets import QApplication
 
 from core.config import load_config
 from i18n import set_language
-from ui.theme import apply_theme
 from ui.main_window import MainWindow
+from ui.theme import apply_theme
 from version import __version__
 
 

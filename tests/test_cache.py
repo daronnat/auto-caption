@@ -1,8 +1,11 @@
-import json
-from pathlib import Path
 
 from core.cache import (
-    get_cached, set_cached, clear_cache, cache_size_str, cache_count, CACHE_DIR,
+    CACHE_DIR,
+    cache_count,
+    cache_size_str,
+    clear_cache,
+    get_cached,
+    set_cached,
 )
 
 

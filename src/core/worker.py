@@ -1,8 +1,10 @@
 from pathlib import Path
+
 from PySide6.QtCore import QThread, Signal
+
 from backend.base import InferenceBackend
 from core.cache import get_cached, set_cached
-from core.config import IMAGE_EXTENSIONS, DOCUMENT_EXTENSIONS
+from core.config import DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS
 from core.renamer import rename_file
 from core.style import STYLE_INSTRUCTIONS
 from core.text_extract import extract_text

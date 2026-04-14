@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
 
-from i18n import tr, set_language, current_language, available_languages, load_fallback
-
+from i18n import available_languages, current_language, load_fallback, set_language, tr
 
 I18N_DIR = Path(__file__).parent.parent / "src" / "i18n"
 

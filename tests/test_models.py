@@ -1,4 +1,4 @@
-from core.models import get_downloaded_models, total_cache_size_mb, cache_dir_path
+from core.models import cache_dir_path, get_downloaded_models, total_cache_size_mb
 
 
 class TestModels:

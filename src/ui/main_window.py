@@ -1,26 +1,48 @@
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QThread, Signal
+from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtGui import QCloseEvent, QIcon, QPixmap
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
-    QFileIconProvider, QFrame, QGroupBox, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QRadioButton,
-    QSpinBox, QSplitter, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QButtonGroup,
+    QComboBox,
+    QFileDialog,
+    QFileIconProvider,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSpinBox,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
 )
 
 from backend.base import InferenceBackend
 from backend.registry import available_backends, get_backend
 from core.config import (
-    DEFAULT_MODEL_ID, DEFAULT_GGUF_REPO, DEFAULT_GGUF_FILE, DEFAULT_MMPROJ_FILE,
-    IMAGE_EXTENSIONS, DOCUMENT_EXTENSIONS, ALL_EXTENSIONS, load_config, save_config,
+    ALL_EXTENSIONS,
+    DEFAULT_GGUF_FILE,
+    DEFAULT_GGUF_REPO,
+    DEFAULT_MMPROJ_FILE,
+    DEFAULT_MODEL_ID,
+    DOCUMENT_EXTENSIONS,
+    IMAGE_EXTENSIONS,
+    save_config,
 )
-from core.worker import RenameWorker
 from core.style import STYLE_NAMES
-from i18n import tr, set_language, current_language, available_languages
-from ui.theme import apply_theme
-from ui.prompt_manager import PromptManager
+from core.worker import RenameWorker
+from i18n import available_languages, current_language, set_language, tr
 from ui.progress_widget import ProgressWidget
+from ui.prompt_manager import PromptManager
+from ui.theme import apply_theme
 
 
 class GpuDetector(QThread):
@@ -343,7 +365,7 @@ class MainWindow(QMainWindow):
     # ── Cache ────────────────────────────────────────────────────
 
     def _update_cache_display(self):
-        from core.cache import cache_size_str, cache_count
+        from core.cache import cache_count, cache_size_str
         count = cache_count()
         size = cache_size_str()
         if count > 0:

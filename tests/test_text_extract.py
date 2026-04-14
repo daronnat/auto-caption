@@ -1,7 +1,8 @@
-import pytest
 from pathlib import Path
 
-from core.text_extract import extract_text, MAX_CHARS
+import pytest
+
+from core.text_extract import MAX_CHARS, extract_text
 
 
 class TestPlainText:

@@ -1,4 +1,4 @@
-from core.style import apply_style, STYLE_NAMES, STYLE_INSTRUCTIONS
+from core.style import STYLE_INSTRUCTIONS, STYLE_NAMES, apply_style
 
 
 class TestApplyStyle:

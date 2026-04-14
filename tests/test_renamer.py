@@ -1,6 +1,5 @@
-from pathlib import Path
 
-from core.renamer import rename_file, _unique_path
+from core.renamer import _unique_path, rename_file
 
 
 class TestUniquePath:

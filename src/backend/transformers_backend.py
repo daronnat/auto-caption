@@ -12,7 +12,6 @@ class TransformersBackend(InferenceBackend):
         self._dtype_name = "float32"
 
     def load_model(self, model_id: str, **kwargs) -> None:
-        import torch
         from transformers import pipeline
 
         self._model_id = model_id

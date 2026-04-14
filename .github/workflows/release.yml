@@ -78,6 +78,9 @@ jobs:
           # Copy PyInstaller output
           cp -r dist/auto-caption/* AppDir/usr/bin/
 
+          # Icon (required by appimagetool)
+          cp assets/auto-caption.png AppDir/auto-caption.png
+
           # Desktop entry
           cat > AppDir/auto-caption.desktop << 'EOF'
           [Desktop Entry]

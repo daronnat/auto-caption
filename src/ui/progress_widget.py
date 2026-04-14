@@ -1,5 +1,7 @@
 import time
+
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout
+
 from i18n import tr
 
 

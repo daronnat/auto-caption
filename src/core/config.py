@@ -26,7 +26,12 @@ DEFAULTS = {
 
 DEFAULT_PROMPT_IMAGE = {
     "name": "Default (Image)",
-    "prompt": "Describe this image in {max_words} words or fewer to create a filename. {style_instruction} {extra} Return ONLY the filename without extension. No explanation, no punctuation, no quotes.",
+    "prompt": (
+        "Describe this image in {max_words} words or fewer to create a filename."
+        " {style_instruction} {extra}"
+        " Return ONLY the filename without extension."
+        " No explanation, no punctuation, no quotes."
+    ),
     "temperature": 0.0,
     "top_p": 1.0,
     "max_new_tokens": 50,
@@ -34,7 +39,14 @@ DEFAULT_PROMPT_IMAGE = {
 
 DEFAULT_PROMPT_DOCUMENT = {
     "name": "Default (Document)",
-    "prompt": "Based on the following document content, suggest a filename of {max_words} words or fewer that captures the main topic. {style_instruction} {extra} Return ONLY the filename without extension. No explanation, no punctuation, no quotes.\n\nDocument content:\n{document_text}",
+    "prompt": (
+        "Based on the following document content, suggest a filename of"
+        " {max_words} words or fewer that captures the main topic."
+        " {style_instruction} {extra}"
+        " Return ONLY the filename without extension."
+        " No explanation, no punctuation, no quotes."
+        "\n\nDocument content:\n{document_text}"
+    ),
     "temperature": 0.0,
     "top_p": 1.0,
     "max_new_tokens": 50,

@@ -1,10 +1,15 @@
-import json
-from pathlib import Path
 
 from core.config import (
-    DEFAULTS, DEFAULT_PROMPT_IMAGE, DEFAULT_PROMPT_DOCUMENT,
-    IMAGE_EXTENSIONS, DOCUMENT_EXTENSIONS, ALL_EXTENSIONS,
-    load_config, save_config, load_prompts, save_prompts,
+    ALL_EXTENSIONS,
+    DEFAULT_PROMPT_DOCUMENT,
+    DEFAULT_PROMPT_IMAGE,
+    DEFAULTS,
+    DOCUMENT_EXTENSIONS,
+    IMAGE_EXTENSIONS,
+    load_config,
+    load_prompts,
+    save_config,
+    save_prompts,
 )
 
 
