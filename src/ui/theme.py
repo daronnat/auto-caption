@@ -46,6 +46,11 @@ DARK_STYLESHEET = """
         stop:0 #0d0d1a, stop:0.5 #111128, stop:1 #16162e);
 }
 
+/* ── Transparent intermediaries (let gradient show through) ── */
+QSplitter, #settingsPanel, #bottomPanel {
+    background: transparent;
+}
+
 /* ── Glass panels ── */
 QGroupBox {
     background-color: rgba(25, 25, 45, 180);
@@ -250,6 +255,11 @@ LIGHT_STYLESHEET = """
 #centralWidget {
     background: qlineargradient(x1:0, y1:0, x2:0.4, y2:1,
         stop:0 #f8f9fe, stop:0.5 #f0f1fa, stop:1 #e8eaf5);
+}
+
+/* ── Transparent intermediaries (let gradient show through) ── */
+QSplitter, #settingsPanel, #bottomPanel {
+    background: transparent;
 }
 
 /* ── Glass panels ── */

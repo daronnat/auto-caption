@@ -229,6 +229,8 @@ class MainWindow(QMainWindow):
 
     def _build_settings_panel(self) -> QWidget:
         container = QWidget()
+        container.setObjectName("settingsPanel")
+        container.setAttribute(Qt.WA_StyledBackground, True)
         layout = QVBoxLayout(container)
         layout.setSpacing(8)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -281,6 +283,8 @@ class MainWindow(QMainWindow):
 
     def _build_bottom_panel(self) -> QFrame:
         frame = QFrame()
+        frame.setObjectName("bottomPanel")
+        frame.setAttribute(Qt.WA_StyledBackground, True)
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
